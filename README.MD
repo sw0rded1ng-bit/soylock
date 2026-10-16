@@ -1,5 +1,5 @@
 # **soylock**
-soysphere themes fork of sherlock (Won't be actively maintained)
+soysphere themed fork of sherlock thats slightly faster. Won't be actively maintained
 
 <p>Install:
 pip install .</p>
