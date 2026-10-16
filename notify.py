@@ -1,0 +1,457 @@
+"""Soylock Notify Module
+
+This module defines the objects for notifying the caller about the
+results of queries.
+"""
+from result import QueryStatus
+from colorama import Fore, Style
+import webbrowser
+import textwrap
+import shutil
+import json
+import re
+
+# Global variable to count the number of results.
+globvar = 0
+wafvar = 0
+blockedvar = 0
+
+ANSI_RE = re.compile(r'\x1b\[[0-9;]*m')
+
+from __init__ import (
+    __version__,
+)
+
+class QueryNotify:
+    """Query Notify Object.
+
+    Base class that describes methods available to notify the results of
+    a query.
+    It is intended that other classes inherit from this base class and
+    override the methods to implement specific functionality.
+    """
+
+    def __init__(self, result=None):
+        """Create Query Notify Object.
+
+        Contains information about a specific method of notifying the results
+        of a query.
+
+        Keyword Arguments:
+        self                   -- This object.
+        result                 -- Object of type QueryResult() containing
+                                  results for this query.
+
+        Return Value:
+        Nothing.
+        """
+
+        self.result = result
+
+        # return
+
+    def start(self, message=None):
+        """Notify Start.
+
+        Notify method for start of query.  This method will be called before
+        any queries are performed.  This method will typically be
+        overridden by higher level classes that will inherit from it.
+
+        Keyword Arguments:
+        self                   -- This object.
+        message                -- Object that is used to give context to start
+                                  of query.
+                                  Default is None.
+
+        Return Value:
+        Nothing.
+        """
+
+        # return
+
+    def update(self, result):
+        """Notify Update.
+
+        Notify method for query result.  This method will typically be
+        overridden by higher level classes that will inherit from it.
+
+        Keyword Arguments:
+        self                   -- This object.
+        result                 -- Object of type QueryResult() containing
+                                  results for this query.
+
+        Return Value:
+        Nothing.
+        """
+
+        self.result = result
+
+        # return
+
+    def finish(self, message=None):
+        """Notify Finish.
+
+        Notify method for finish of query.  This method will be called after
+        all queries have been performed.  This method will typically be
+        overridden by higher level classes that will inherit from it.
+
+        Keyword Arguments:
+        self                   -- This object.
+        message                -- Object that is used to give context to start
+                                  of query.
+                                  Default is None.
+
+        Return Value:
+        Nothing.
+        """
+
+        # return
+
+    def __str__(self):
+        """Convert Object To String.
+
+        Keyword Arguments:
+        self                   -- This object.
+
+        Return Value:
+        Nicely formatted string to get information about this object.
+        """
+        return str(self.result)
+
+
+class QueryNotifyPrint(QueryNotify):
+    """Query Notify Print Object.
+
+    Query notify class that prints results.
+    """
+
+    def __init__(self, result=None, verbose=False, print_all=False, browse=False):
+        """Create Query Notify Print Object.
+
+        Contains information about a specific method of notifying the results
+        of a query.
+
+        Keyword Arguments:
+        self                   -- This object.
+        result                 -- Object of type QueryResult() containing
+                                  results for this query.
+        verbose                -- Boolean indicating whether to give verbose output.
+        print_all              -- Boolean indicating whether to only print all sites, including not found.
+        browse                 -- Boolean indicating whether to open found sites in a web browser.
+
+        Return Value:
+        Nothing.
+        """
+
+        super().__init__(result)
+        self.verbose = verbose
+        self.print_all = print_all
+        self.browse = browse
+
+        return
+
+    def splash(self):
+        splash = f"                       *                             o   {Fore.WHITE}.                        {Fore.LIGHTYELLOW_EX}.-.{Fore.WHITE}                                       .\n"
+        splash += f"                 {Fore.LIGHTWHITE_EX}+#######+{Fore.WHITE}   .      {Fore.LIGHTWHITE_EX}+  *{Fore.WHITE}                           '       '  ~~{Fore.LIGHTWHITE_EX}+  {Fore.LIGHTYELLOW_EX}) ){Fore.WHITE}      '             .                  \n"
+        splash += f"      .       {Fore.LIGHTWHITE_EX}+####-----####+{Fore.WHITE}                               .                     {Fore.LIGHTYELLOW_EX}'-´{Fore.WHITE}        .           {Fore.LIGHTWHITE_EX}+{Fore.WHITE}~~                 \n"
+        splash += f"         {Fore.LIGHTWHITE_EX}*{Fore.WHITE}   {Fore.LIGHTWHITE_EX}###      {Fore.WHITE}'{Fore.LIGHTWHITE_EX}    ###{Fore.WHITE}         {Fore.LIGHTWHITE_EX}+{Fore.WHITE}                            .  '{Fore.LIGHTWHITE_EX}*{Fore.WHITE}                {Fore.LIGHTYELLOW_EX}':.{Fore.WHITE}      .                          \n"
+        splash += f"      '     {Fore.LIGHTWHITE_EX}##+             +##{Fore.WHITE}                                                            {Fore.LIGHTYELLOW_EX}'::{Fore.LIGHTRED_EX}._{Fore.WHITE}                            '\n"
+        splash += f"           {Fore.LIGHTWHITE_EX}+##               ##+{Fore.WHITE} .                                    {Fore.LIGHTWHITE_EX}*{Fore.WHITE}                      {Fore.LIGHTRED_EX}'{Fore.RED}._){Fore.WHITE}                            \n"
+        splash += f"    {Fore.LIGHTWHITE_EX}*{Fore.WHITE}'     {Fore.LIGHTWHITE_EX}###               ###{Fore.WHITE}                                                                       .       .             \n"
+        splash += f"           {Fore.LIGHTWHITE_EX}+##     {Fore.WHITE}.{Fore.LIGHTWHITE_EX}         ##+{Fore.WHITE}                  *{Fore.LIGHTWHITE_EX}+{Fore.WHITE}         |                                                               \n"
+        splash += f"            {Fore.LIGHTWHITE_EX}###             ###{Fore.WHITE}   {Fore.LIGHTWHITE_EX}o{Fore.WHITE}.                        -{Fore.LIGHTWHITE_EX}o{Fore.WHITE}-                                          .               {Fore.LIGHTWHITE_EX}o{Fore.WHITE}   \n"
+        splash += f"  {Fore.LIGHTWHITE_EX}+{Fore.WHITE}          {Fore.LIGHTWHITE_EX}###-         -###{Fore.WHITE}         '                     |                 '                                             \n"
+        splash += f"              {Fore.LIGHTWHITE_EX}-####+---+####+{Fore.WHITE}          {Fore.LIGHTWHITE_EX}o +{Fore.WHITE}                                    .        {Fore.LIGHTWHITE_EX}(version {__version__} beta) by system_call{Fore.WHITE}\n"
+        splash += f"          {Fore.LIGHTWHITE_EX}+##+   -#######-                 {Fore.LIGHTBLACK_EX}      ::::::::   ::::::::  :::   ::: :::        ::::::::   ::::::::  :::    :::{Fore.WHITE}   \n"
+        splash += f"        {Fore.LIGHTWHITE_EX}+###-                              {Fore.LIGHTBLACK_EX}    :+:    :+: :+:    :+: :+:   :+: :+:       :+:    :+: :+:    :+: :+:   :+:{Fore.WHITE}     \n"
+        splash += f"   .  {Fore.LIGHTWHITE_EX}+###+ o{Fore.WHITE}   .            |         {Fore.WHITE}       +:+        +:+    +:+  +:+ +:+  +:+       +:+    +:+ +:+        +:+  +:+       \n"
+        splash += f"    {Fore.LIGHTWHITE_EX}+####{Fore.WHITE} .                 -{Fore.LIGHTWHITE_EX}o{Fore.WHITE}-        {Fore.WHITE}      +#++:++#++ +#+    +:+   +#++:   +#+       +#+    +:+ +#+        +#++:++         \n"
+        splash += f"  {Fore.LIGHTWHITE_EX}#####                      |             {Fore.LIGHTWHITE_EX}        +#+ +#+    +#+    +#+    +#+       +#+    +#+ +#+        +#+  +#+         \n"
+        splash += f"{Fore.LIGHTWHITE_EX}+####-{Fore.WHITE}        '                {Fore.LIGHTWHITE_EX}            #+#    #+# #+#    #+#    #+#    #+#       #+#    #+# #+#    #+# #+#   #+#       {Fore.WHITE}.{Fore.LIGHTWHITE_EX}+\n"
+        splash += f"{Fore.LIGHTWHITE_EX}###+                                       {Fore.LIGHTWHITE_EX}########   ########     ###    ########## ########   ########  ###    ###         \n"
+
+        print(splash)
+
+    def versionAlert(self, version):
+        print(f"{Fore.GREEN}New update available: {Fore.LIGHTGREEN_EX}{version} {Fore.GREEN}({Fore.LIGHTWHITE_EX}https://github.com/SystemCallW/Soylock{Fore.GREEN})")
+
+    def start(self, username, message="", new_line=False):
+        """Notify Start.
+
+        Will print the title to the standard output.
+
+        Keyword Arguments:
+        self                   -- This object.
+        message                -- String containing username that the series
+                                  of queries are about.
+
+        Return Value:
+        Nothing.
+        """
+        title = "Checking username"
+
+        if new_line:
+            print('\r')
+        print(Style.BRIGHT + Fore.GREEN + "[" +
+              Fore.YELLOW + "*" +
+              Fore.GREEN + f"] {title}" +
+              Fore.WHITE + f" {username}" +
+              Fore.GREEN + f" on{message}:")
+        # An empty line between first line and the result(more clear output)
+        print('\r')
+
+        return
+
+    def countResults(self):
+        """This function counts the number of results. Every time the function is called,
+        the number of results is increasing.
+
+        Keyword Arguments:
+        self                   -- This object.
+
+        Return Value:
+        The number of results by the time we call the function.
+        """
+        global globvar
+        globvar += 1
+        return globvar
+
+    def countWAF(self):
+        """This function counts the number of WAF. Every time the function is called,
+        the number of results is increasing.
+
+        Keyword Arguments:
+        self                   -- This object.
+
+        Return Value:
+        The number of WAF by the time we call the function.
+        """
+        global wafvar
+        wafvar += 1
+        return wafvar
+
+    def countBlocked(self):
+        """This function counts the number of blocked. Every time the function is called,
+        the number of results is increasing.
+
+        Keyword Arguments:
+        self                   -- This object.
+
+        Return Value:
+        The number of blocked by the time we call the function.
+        """
+        global blockedvar
+        blockedvar += 1
+        return blockedvar
+
+    def update(self, result):
+        """Notify Update.
+
+        Will print the query result to the standard output.
+
+        Keyword Arguments:
+        self                   -- This object.
+        result                 -- Object of type QueryResult() containing
+                                  results for this query.
+
+        Return Value:
+        Nothing.
+        """
+        self.result = result
+
+        response_time_text = ""
+        if self.result.query_time is not None and self.verbose is True:
+            response_time_text = f" [{round(self.result.query_time * 1000)}ms]"
+
+        # Output to the terminal is desired.
+        if result.status == QueryStatus.CLAIMED:
+            self.countResults()
+            print(Style.BRIGHT + Fore.WHITE + "[" +
+                  Fore.GREEN + "+" +
+                  Fore.WHITE + "]" +
+                  response_time_text +
+                  Fore.GREEN +
+                  f" {self.result.site_name}: " +
+                  Style.RESET_ALL +
+                  f"{self.result.site_url_user}")
+            if self.browse:
+                webbrowser.open(self.result.site_url_user, 2)
+            if result.fields is not None:
+                for name, value in result.fields.items():
+                    self.print_field(name, value)
+
+        elif result.status == QueryStatus.AVAILABLE:
+            if self.print_all:
+                print(Style.BRIGHT + Fore.WHITE + "[" +
+                      Fore.RED + "-" +
+                      Fore.WHITE + "]" +
+                      response_time_text +
+                      Fore.GREEN + f" {self.result.site_name}:" +
+                      Fore.YELLOW + " Not Found!")
+
+        elif result.status == QueryStatus.UNKNOWN:
+            if self.print_all:
+                print(Style.BRIGHT + Fore.WHITE + "[" +
+                      Fore.RED + "-" +
+                      Fore.WHITE + "]" +
+                      Fore.GREEN + f" {self.result.site_name}:" +
+                      Fore.RED + f" {self.result.context}" +
+                      Fore.YELLOW + " ")
+
+        elif result.status == QueryStatus.ILLEGAL:
+            if self.print_all:
+                msg = "Illegal Username Format For This Site!"
+                print(Style.BRIGHT + Fore.WHITE + "[" +
+                      Fore.RED + "-" +
+                      Fore.WHITE + "]" +
+                      Fore.GREEN + f" {self.result.site_name}:" +
+                      Fore.YELLOW + f" {msg}")
+                
+        elif result.status == QueryStatus.WAF:
+            self.countWAF()
+            if self.print_all:
+                print(Style.BRIGHT + Fore.WHITE + "[" +
+                      Fore.RED + "-" +
+                      Fore.WHITE + "]" +
+                      Fore.GREEN + f" {self.result.site_name}:" +
+                      Fore.RED + " Blocked by bot detection" +
+                      Fore.YELLOW + " (proxy may help)")
+        elif result.status == QueryStatus.UNIMPLEMENTED:
+            if self.print_all:
+                print(Style.BRIGHT + Fore.WHITE + "[" +
+                      Fore.RED + "-" +
+                      Fore.WHITE + "]" +
+                      Fore.GREEN + f" {self.result.site_name}:" +
+                      Fore.RED + " This site requires Browser Mode (unimplemented)")
+        elif result.status == QueryStatus.BLOCKED:
+            self.countBlocked()
+            if self.print_all:
+                print(Style.BRIGHT + Fore.WHITE + "[" +
+                      Fore.RED + "-" +
+                      Fore.WHITE + "]" +
+                      Fore.GREEN + f" {self.result.site_name}:" +
+                      Fore.RED + " Blocked by your country" +
+                      Fore.YELLOW + " (proxy may help)")
+
+        else:
+            # It should be impossible to ever get here...
+            raise ValueError(
+                f"Unknown Query Status '{result.status}' for site '{self.result.site_name}'"
+            )
+
+        return
+
+    def blocked(self, site, message):
+         print(Style.BRIGHT + Fore.WHITE + "[" +
+            Fore.RED + "!" +
+            Fore.WHITE + f"] {site} " +
+            Fore.RED + message +
+            Fore.YELLOW + " (proxy may help)" + Style.RESET_ALL)
+
+    def finish(self, message="The processing has been finished."):
+        """Notify Start.
+        Will print the last line to the standard output.
+        Keyword Arguments:
+        self                   -- This object.
+        message                -- The 2 last phrases.
+        Return Value:
+        Nothing.
+        """
+        NumberOfResults = self.countResults() - 1
+        NumberOfWAF = self.countWAF() - 1
+        NumberOfBlock = self.countBlocked() - 1
+
+        print(Style.BRIGHT + Fore.GREEN + "[" +
+              Fore.YELLOW + "*" +
+              Fore.GREEN + "] Search completed with" +
+              Fore.WHITE + f" {NumberOfResults} " +
+              Fore.GREEN + "results" + Style.RESET_ALL)
+        if NumberOfWAF != 0:
+            print(Style.BRIGHT + Fore.WHITE + "[" +
+                  Fore.RED + "-" +
+                  Fore.WHITE + f"] {NumberOfWAF} " +
+                  Fore.RED + "Site got WAF blocked" +
+                  Fore.YELLOW + " (a clean IP may help)" + Style.RESET_ALL)
+        if NumberOfBlock != 0:
+            print(Style.BRIGHT + Fore.WHITE + "[" +
+                  Fore.RED + "-" +
+                  Fore.WHITE + f"] {NumberOfBlock} " +
+                  Fore.RED + "Site got country blocked"  +
+                  Fore.YELLOW + " (proxy may help)" + Style.RESET_ALL)
+
+    def wrap_print(self, prefix, value):
+        visible_prefix = ANSI_RE.sub('', prefix)
+        indent = " " * len(visible_prefix)
+
+        term_width = shutil.get_terminal_size().columns
+        wrap_width = max(40, term_width - len(visible_prefix))
+
+        lines = str(value).splitlines()
+        wrapped_lines = []
+
+        for line in lines:
+            if line.strip():
+                wrapped = textwrap.wrap(
+                    line,
+                    width=wrap_width,
+                    break_long_words=False,
+                    break_on_hyphens=False,
+                    replace_whitespace=True
+                )
+                wrapped_lines.extend(wrapped)
+            else:
+                wrapped_lines.append("")
+
+        formatted_value = ("\n" + indent).join(wrapped_lines)
+        print(prefix + formatted_value)
+
+    def print_field(self, name, value, level=1):
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped.startswith("{") or stripped.startswith("["):
+                try:
+                    value = json.loads(stripped)
+                except json.JSONDecodeError:
+                    pass
+
+        bullet = "    " * level + "- "
+
+        prefix = (
+            Style.BRIGHT + Fore.WHITE + bullet + Style.RESET_ALL +
+            Style.BRIGHT + Fore.GREEN + str(name) + Style.RESET_ALL +
+            Fore.WHITE + ": " + Style.RESET_ALL
+        )
+
+        if isinstance(value, dict):
+            self.wrap_print(prefix, "")
+            for child_name, child_value in value.items():
+                self.print_field(child_name, child_value, level + 1)
+
+        elif isinstance(value, list):
+            print(prefix)
+
+            for index, item in enumerate(value, start=1):
+                if isinstance(item, dict):
+                    item_prefix = (Style.BRIGHT + Fore.WHITE + ("    " * (level + 1)) + Style.RESET_ALL)
+                    print(item_prefix)
+
+                    for child_name, child_value in item.items():
+                        self.print_field(child_name, child_value, level + 2)
+                elif isinstance(item, str):
+                    item_prefix = (Style.BRIGHT + Fore.WHITE + ("    " * (level + 1)) + Style.RESET_ALL)
+                    print(item_prefix + " - " + item)
+                else:
+                    self.print_field(f"Item #{index}", item, level + 1)
+        else:
+            self.wrap_print(prefix, value)
+
+    def __str__(self):
+        """Convert Object To String.
+
+        Keyword Arguments:
+        self                   -- This object.
+
+        Return Value:
+        Nicely formatted string to get information about this object.
+        """
+        return str(self.result)

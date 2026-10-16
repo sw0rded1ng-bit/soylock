@@ -1,0 +1,12 @@
+LICENSE
+setup.py
+browser/__init__.py
+browser/client.py
+browser/helper.py
+browser/patch.py
+soylock.egg-info/PKG-INFO
+soylock.egg-info/SOURCES.txt
+soylock.egg-info/dependency_links.txt
+soylock.egg-info/entry_points.txt
+soylock.egg-info/requires.txt
+soylock.egg-info/top_level.txt
