@@ -1,7 +1,0 @@
-bs4
-pandas
-colorama
-requests
-tls_client
-playwright==1.57.0
-cloverlabs-camoufox==0.6.0
